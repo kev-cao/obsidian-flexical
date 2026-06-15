@@ -1,4 +1,4 @@
-import micromatch from "micromatch";
+import picomatch from "picomatch/posix";
 import { nanoid } from "nanoid";
 import { CachedMetadata, TFile } from "obsidian";
 
@@ -130,7 +130,7 @@ export function fileMatchesFilter(fileEntry: FileEntry, filter: Filter): boolean
 			if (filter.glob === "") {
 				return true;
 			}
-			return micromatch.isMatch(fileEntry.file.path, filter.glob);
+			return picomatch(filter.glob)(fileEntry.file.path);
 		default:
 			return fileMatchesPropertyFilter(fileEntry, filter);
 	}

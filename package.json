@@ -14,7 +14,6 @@
 	"license": "0-BSD",
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",
-		"@types/micromatch": "^4.0.10",
 		"@types/node": "^22.15.17",
 		"@types/react": "^19.2.17",
 		"@types/react-dom": "^19.2.3",
@@ -29,8 +28,9 @@
 		"typescript-eslint": "^8.59.1"
 	},
 	"dependencies": {
-		"micromatch": "^4.0.8",
+		"@types/picomatch": "^4.0.3",
 		"nanoid": "^5.1.11",
+		"picomatch": "^4.0.4",
 		"react": "^19.2.7",
 		"react-dom": "^19.2.7",
 		"vanilla-calendar-pro": "^3.1.0"
