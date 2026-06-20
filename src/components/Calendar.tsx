@@ -12,15 +12,19 @@ import {
 	FILE_MODIFIED_EVENT,
 	SETTINGS_UPDATED_EVENT,
 } from "@/main";
+import { FlexiCalSettings } from "@/settings";
 
 const MAX_DOTS_PER_DAY = 6;
 
 export default function FlexiCalendar() {
 	const ref = useRef(null);
-	const [vanillaCalendar, setVanillaCalendar] = useState<VanillaCalendar | null>(null);
 	const plugin = usePlugin();
-	const [settings, setSettings] = useState(plugin?.settings);
+	const [vanillaCalendar, setVanillaCalendar] = useState<VanillaCalendar | null>(null);
 	const [period, setPeriod] = useState<DateRange | null>(null);
+	const [settings, setSettings] = useState<FlexiCalSettings | undefined>(
+		plugin?.settings ? { ...plugin.settings } : undefined
+	);
+	const oldSettings = useRef(settings);
 	// Maps a YYYY-MM-DD day to the colors of every calendar with a match on it.
 	// A ref (not state) so onCreateDateEls always reads current data without
 	// needing to be re-registered on the vanilla calendar.
@@ -115,10 +119,7 @@ export default function FlexiCalendar() {
 		const refs = [
 			plugin.eventBus.on(
 				SETTINGS_UPDATED_EVENT,
-				(settings) => {
-					logger.debug("Settings updated; refreshing calendars");
-					setSettings(settings);
-				},
+				(settings) => setSettings({...settings}),
 			),
 			plugin.eventBus.on(FILE_CREATED_EVENT, onFileChange),
 			plugin.eventBus.on(FILE_DELETED_EVENT, onFileChange),
@@ -149,6 +150,11 @@ export default function FlexiCalendar() {
 		};
 	}, [vanillaCalendar]);
 
+	useEffect(() => {
+		logger.debug("Settings changed");
+		refreshMatches();
+		oldSettings.current = settings ? { ...settings } : undefined;
+	}, [oldSettings, settings])
 	useEffect(() => {
 		refreshMatches();
 	}, [period]);
