@@ -21,7 +21,7 @@ export class FlexiCalView extends ItemView {
 	}
 
 	getDisplayText() {
-		return "Flexical";
+		return "FlexiCal";
 	}
 
 	getIcon() {
