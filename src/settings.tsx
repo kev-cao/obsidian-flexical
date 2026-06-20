@@ -37,7 +37,7 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Start week on Sunday")
-			.setDesc("Whether to start the week on Sunday or Monday.")
+			.setDesc("Whether to start the week on Sunday or Monday")
 			.addToggle(
 				(toggle) =>
 					toggle.setValue(this.plugin.settings.sundayStart)
@@ -49,7 +49,7 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Ignored folders")
-			.setDesc("Comma-separated list of folders to ignore.")
+			.setDesc("Comma-separated list of folders to ignore")
 			.addText((text) =>
 				text.setValue(this.plugin.settings.ignoredFolders.join(", "))
 					.onChange((value) => {
@@ -122,7 +122,7 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 			new Setting(calContainer)
 				.setName("Date field")
 				.setDesc(
-					"The field in the frontmatter that contains the date for a note."
+					"The field in the frontmatter that contains the date for a note"
 				)
 				.addText(
 					text => text.setValue(calendar.getDateField())
@@ -136,7 +136,7 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 			new Setting(calContainer)
 				.setName("Week field")
 				.setDesc(
-					"The field in the frontmatter that contains the week for a note. This is optional and only used if you want to display weekly notes. The format should be ISO week format, e.g. `2023-W33`."
+					"The field in the frontmatter that contains the week for a note. This is optional and only used if you want to display weekly notes. The format should be ISO week format, e.g. `2023-W33`"
 				)
 				.addText(
 					text => text.setValue(calendar.getWeekField())
