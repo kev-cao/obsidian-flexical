@@ -1,7 +1,7 @@
 {
 	"id": "flexical",
 	"name": "FlexiCal",
-	"version": "1.0.3",
+	"version": "1.1.0",
 	"minAppVersion": "1.12.0",
 	"description": "A flexible calendar plugin to display the notes you want to see in a calendar view. You pick the filter and color, and FlexiCal will do the rest.",
 	"author": "Kevin Cao",
