@@ -2,6 +2,7 @@ import { App, TFile } from "obsidian";
 import { Filter, FileEntry, fileMatchesFilter } from "./filter";
 import { nanoid } from "nanoid";
 import logger from "./utils/logging";
+import { FlexiCalSettings } from "@/settings";
 
 export type CalendarID = string;
 
@@ -97,9 +98,14 @@ export class Calendar {
 	// matchFile returns a match if the given file falls within the range
 	// (inclusive start, exclusive end) and satisfies this calendar's filter,
 	// or null otherwise.
-	matchFile(entry: FileEntry, range: DateRange): CalendarFileMatch | null {
+	matchFile(
+		settings: FlexiCalSettings, entry: FileEntry, range: DateRange,
+	): CalendarFileMatch | null {
 		const { file, cache } = entry;
 		if (!cache.frontmatter) {
+			return null;
+		}
+		if (fileIsIgnored(settings, file)) {
 			return null;
 		}
 		const dateValue: unknown = cache.frontmatter[this.dateField];
@@ -141,10 +147,11 @@ export class Calendar {
 // to the first calendar (in order) that matches it within the range, so a file
 // belongs to at most one calendar. Earlier calendars take precedence.
 export function collectMatches(
-	calendars: Calendar[],
+	settings: FlexiCalSettings,
 	app: App,
 	range: DateRange,
 ): CalendarFileMatch[] {
+	const calendars = settings.calendars;
 	const matches: CalendarFileMatch[] = [];
 	const files = app.vault.getMarkdownFiles();
 	for (const file of files) {
@@ -155,7 +162,7 @@ export function collectMatches(
 		}
 		const entry: FileEntry = { file, cache };
 		for (const calendar of calendars) {
-			const match = calendar.matchFile(entry, range);
+			const match = calendar.matchFile(settings, entry, range);
 			if (match) {
 				matches.push(match);
 				break;
@@ -227,4 +234,13 @@ function extractWeekFromField(weekValue: unknown): Date | null {
 
 export function genCalendarID(): CalendarID {
 	return nanoid(5);
+}
+
+function fileIsIgnored(settings: FlexiCalSettings, file: TFile): boolean {
+	for (const ignoredFolder of settings.ignoredFolders) {
+		if (file.path.startsWith(ignoredFolder)) {
+			return true;
+		}
+	}
+	return false;
 }

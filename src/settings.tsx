@@ -6,6 +6,7 @@ import FilterModal from "./components/settings/FilterModal";
 
 export interface FlexiCalSettings {
 	calendars: Calendar[];
+	ignoredFolders: string[];
 	sundayStart: boolean;
 	debugMode: boolean;
 }
@@ -17,6 +18,7 @@ export type RawFlexiCalSettings = Omit<Partial<FlexiCalSettings>, "calendars"> &
 
 export const DEFAULT_SETTINGS: FlexiCalSettings = {
 	calendars: [],
+	ignoredFolders: [],
 	sundayStart: false,
 	debugMode: false,
 };
@@ -44,6 +46,18 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 							return this.plugin.saveSettings();
 						})
 			);
+
+		new Setting(containerEl)
+			.setName("Ignored folders")
+			.setDesc("Comma-separated list of folders to ignore.")
+			.addText((text) =>
+				text.setValue(this.plugin.settings.ignoredFolders.join(", "))
+					.onChange((value) => {
+						this.plugin.settings.ignoredFolders = value.split(",").map((folder) => folder.trim());
+						return this.plugin.saveSettings();
+					})
+					.setPlaceholder("Example: templates/, daily/scratch/")
+			)
 
 		new Setting(containerEl)
 			.setName("Calendars")

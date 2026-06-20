@@ -33,7 +33,7 @@ export default function FlexiCalendar() {
 	const refreshMatches = useCallback(() => {
 		if (!period || !vanillaCalendar || !plugin || !settings) return;
 		const dateToMatches = new Map<string, CalendarFileMatch[]>();
-		for (const match of collectMatches(settings.calendars, plugin.app, period)) {
+		for (const match of collectMatches(settings, plugin.app, period)) {
 			const key = toDateKey(match.date);
 			const matches = dateToMatches.get(key) ?? [];
 			matches.push(match);
