@@ -6,6 +6,7 @@ import FilterModal from "./components/settings/FilterModal";
 
 export interface FlexiCalSettings {
 	calendars: Calendar[];
+	sundayStart: boolean;
 	debugMode: boolean;
 }
 
@@ -16,6 +17,7 @@ export type RawFlexiCalSettings = Omit<Partial<FlexiCalSettings>, "calendars"> &
 
 export const DEFAULT_SETTINGS: FlexiCalSettings = {
 	calendars: [],
+	sundayStart: false,
 	debugMode: false,
 };
 
@@ -30,6 +32,19 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		new Setting(containerEl)
+			.setName("Start week on Sunday")
+			.setDesc("Whether to start the week on Sunday or Monday.")
+			.addToggle(
+				(toggle) =>
+					toggle.setValue(this.plugin.settings.sundayStart)
+						.onChange((value) => {
+							this.plugin.settings.sundayStart = value;
+							return this.plugin.saveSettings();
+						})
+			);
+
 		new Setting(containerEl)
 			.setName("Calendars")
 			.setDesc("Manage your calendars")

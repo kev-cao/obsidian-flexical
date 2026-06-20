@@ -54,6 +54,7 @@ export default function FlexiCalendar() {
 		const today = getDateString(new Date());
 		const cal = new VanillaCalendar(ref.current, {
 			dateToday: today,
+			firstWeekday: settings?.sundayStart ? 0 : 1,
 			onClickArrow: syncPeriod,
 			onClickMonth: syncPeriod,
 			onClickYear: syncPeriod,
@@ -152,9 +153,13 @@ export default function FlexiCalendar() {
 
 	useEffect(() => {
 		logger.debug("Settings changed");
+		if (oldSettings.current?.sundayStart !== settings?.sundayStart) {
+			vanillaCalendar?.set({ firstWeekday: settings?.sundayStart ? 0 : 1 });
+		}
 		refreshMatches();
 		oldSettings.current = settings ? { ...settings } : undefined;
 	}, [oldSettings, settings])
+
 	useEffect(() => {
 		refreshMatches();
 	}, [period]);
