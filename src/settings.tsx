@@ -90,6 +90,32 @@ export class FlexiCalSettingsTab extends PluginSettingTab {
 				.setHeading()
 				.addExtraButton(
 					(btn) =>
+						btn.setIcon("chevron-up")
+						.setTooltip("Move calendar up")
+						.onClick(async () => {
+							if (index === 0) return;
+							const temp = this.plugin.settings.calendars[index - 1]!;
+							this.plugin.settings.calendars[index - 1] = calendar;
+							this.plugin.settings.calendars[index] = temp;
+							await this.plugin.saveSettings();
+							return this.display();
+						})
+				)
+				.addExtraButton(
+					(btn) =>
+						btn.setIcon("chevron-down")
+						.setTooltip("Move calendar down")
+						.onClick(async () => {
+							if (index === this.plugin.settings.calendars.length - 1) return;
+							const temp = this.plugin.settings.calendars[index + 1]!;
+							this.plugin.settings.calendars[index + 1] = calendar;
+							this.plugin.settings.calendars[index] = temp;
+							await this.plugin.saveSettings();
+							return this.display();
+						})
+				)
+				.addExtraButton(
+					(btn) =>
 						btn.setIcon("trash")
 						.setTooltip("Delete calendar")
 						.onClick(async () => {
