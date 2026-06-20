@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { setIcon, TAbstractFile } from "obsidian";
 import { Calendar as VanillaCalendar } from "vanilla-calendar-pro";
 import { getDateString } from "vanilla-calendar-pro/utils";
@@ -19,28 +19,33 @@ export default function FlexiCalendar() {
 	const ref = useRef(null);
 	const [vanillaCalendar, setVanillaCalendar] = useState<VanillaCalendar | null>(null);
 	const plugin = usePlugin();
-	const [calendars, setCalendars] = useState(plugin?.settings.calendars ?? []);
+	const [settings, setSettings] = useState(plugin?.settings);
 	const [period, setPeriod] = useState<DateRange | null>(null);
 	// Maps a YYYY-MM-DD day to the colors of every calendar with a match on it.
 	// A ref (not state) so onCreateDateEls always reads current data without
 	// needing to be re-registered on the vanilla calendar.
 	const matchesByDate = useRef(new Map<string, CalendarFileMatch[]>());
 
+	const refreshMatches = useCallback(() => {
+		if (!period || !vanillaCalendar || !plugin || !settings) return;
+		const dateToMatches = new Map<string, CalendarFileMatch[]>();
+		for (const match of collectMatches(settings.calendars, plugin.app, period)) {
+			const key = toDateKey(match.date);
+			const matches = dateToMatches.get(key) ?? [];
+			matches.push(match);
+			dateToMatches.set(key, matches);
+		}
+		matchesByDate.current = dateToMatches;
+		// Preserve the navigated month/year and any selected date; update()
+		// otherwise resets them to the initial construction options, which
+		// snaps the display back on every arrow click.
+		vanillaCalendar.update({ year: false, month: false, dates: false });
+	}, [period, vanillaCalendar, settings, plugin]);
+
 	useEffect(() => {
 		if (!ref.current || !plugin?.app) return;
 		const syncPeriod = (self: VanillaCalendar) => {
-			setPeriod(new DateRange(
-				new Date(
-					Date.UTC(
-						self.context.selectedYear, self.context.selectedMonth, 1,
-					),
-				),
-				new Date(
-					Date.UTC(
-						self.context.selectedYear, self.context.selectedMonth + 1, 1,
-					),
-				),
-			));
+			setPeriod(getCalendarDateRange(self));
 		};
 		const today = getDateString(new Date());
 		const cal = new VanillaCalendar(ref.current, {
@@ -48,11 +53,6 @@ export default function FlexiCalendar() {
 			onClickArrow: syncPeriod,
 			onClickMonth: syncPeriod,
 			onClickYear: syncPeriod,
-			popups: {
-				[today]: {
-					modifier: "today-date-elem",
-				},
-			},
 			onCreateDateEls: (_, dateEl) => {
 				if (dateEl.dataset.vcDateMonth !== "current") return;
 				const matches = matchesByDate.current.get(dateEl.dataset.vcDate ?? "");
@@ -79,11 +79,29 @@ export default function FlexiCalendar() {
 					new FilePickerModal(plugin.app, selectedDate.toDateString(), files).open();
 				}
 			},
+			onUpdate: (self) => {
+				setPeriod((currPeriod) => {
+					const newPeriod = getCalendarDateRange(self);
+					if (!currPeriod || !newPeriod.equals(currPeriod)) return newPeriod;
+					return currPeriod;
+				});
+			},
 		});
 		configureCalendarLayout(cal);
 		setVanillaCalendar(cal);
 		cal.init();
 		syncPeriod(cal);
+
+		// Check if date has changed every hour.
+		const todayInterval = window.setInterval(() => {
+			const today = getDateString(new Date());
+			cal.set({ dateToday: today }, {
+				dates: true
+			});
+		}, 1000 * 60 * 60 /* every hour */);
+		return () => {
+			window.clearInterval(todayInterval);
+		};
 	}, [plugin?.app, ref]);
 
 	// Set up listeners to refresh views when files are changed or when settings
@@ -91,15 +109,15 @@ export default function FlexiCalendar() {
 	useEffect(() => {
 		if (!plugin || !period) return;
 		const onFileChange = (file: TAbstractFile) => {
-			logger.debug(`File changed (${file.path}); refreshing calendar`);
-			setCalendars((calendars) => calendars.map((cal) => cal));
+			logger.debug(`File changed (${file.path}); refreshing matches`);
+			refreshMatches();
 		};
 		const refs = [
 			plugin.eventBus.on(
 				SETTINGS_UPDATED_EVENT,
 				(settings) => {
 					logger.debug("Settings updated; refreshing calendars");
-					setCalendars([...settings.calendars]);
+					setSettings(settings);
 				},
 			),
 			plugin.eventBus.on(FILE_CREATED_EVENT, onFileChange),
@@ -107,7 +125,7 @@ export default function FlexiCalendar() {
 			plugin.eventBus.on(FILE_MODIFIED_EVENT, onFileChange),
 		];
 		return () => refs.forEach((ref) => plugin.eventBus.offref(ref));
-	}, [plugin, period]);
+	}, [plugin, period, refreshMatches]);
 
 	// Adds custom chevron icons to the prev/next buttons on the calendar.
 	useEffect(() => {
@@ -131,23 +149,9 @@ export default function FlexiCalendar() {
 		};
 	}, [vanillaCalendar]);
 
-	// Whenever the period or calendars change, re-map the matches for each day and
-	// trigger a calendar update to re-render the date elements with the new matches.
 	useEffect(() => {
-		if (!period || !vanillaCalendar || !plugin) return;
-		const dateToMatches = new Map<string, CalendarFileMatch[]>();
-		for (const match of collectMatches(calendars, plugin.app, period)) {
-			const key = toDateKey(match.date);
-			const matches = dateToMatches.get(key) ?? [];
-			matches.push(match);
-			dateToMatches.set(key, matches);
-		}
-		matchesByDate.current = dateToMatches;
-		// Preserve the navigated month/year and any selected date; update()
-		// otherwise resets them to the initial construction options, which
-		// snaps the display back on every arrow click.
-		vanillaCalendar.update({ year: false, month: false, dates: false });
-	}, [period, vanillaCalendar, calendars, plugin]);
+		refreshMatches();
+	}, [period]);
 
 	return (
 		<div ref={ref} />
@@ -293,4 +297,11 @@ function roundRobinColors(matches: CalendarFileMatch[]): {color: string, count: 
 		roundRobinIdx = (roundRobinIdx + 1) % calendarNumMatches.length;
 	}
 	return colorCounts;
+}
+
+function getCalendarDateRange(calendar: VanillaCalendar): DateRange {
+	return new DateRange(
+		new Date(Date.UTC(calendar.context.selectedYear, calendar.context.selectedMonth, 1)),
+		new Date(Date.UTC(calendar.context.selectedYear, calendar.context.selectedMonth + 1, 1)),
+	);
 }

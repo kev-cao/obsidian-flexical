@@ -93,7 +93,7 @@
 	min-height: 2.25rem;
 }
 
-.flexi-cal-container .today-date-elem {
+.flexi-cal-container [data-vc-date-today] button {
 	color: var(--interactive-accent);
 }
 
