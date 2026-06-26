@@ -106,6 +106,7 @@ export default function FlexiCalendar() {
 		}, 1000 * 60 * 60 /* every hour */);
 		return () => {
 			window.clearInterval(todayInterval);
+			cal.destroy();
 		};
 	}, [plugin?.app, ref]);
 
