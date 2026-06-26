@@ -258,15 +258,12 @@ function listPropertyPredicate(
 	if (!Array.isArray(lhs)) {
 		return false;
 	}
-	if (!lhs.every((item) => typeof item === "string")) {
-		return false;
-	}
 	switch (operator) {
 		case "contains":
 			return lhs.includes(rhs);
 		case "containsRegex": {
 			const regex = new RegExp(rhs);
-			return lhs.some((item) => regex.test(item));
+			return lhs.some((item) => typeof item === "string" && regex.test(item));
 		}
 	}
 }
