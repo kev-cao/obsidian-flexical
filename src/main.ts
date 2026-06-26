@@ -4,7 +4,6 @@ import {
 	Plugin,
 	WorkspaceLeaf,
 	TAbstractFile,
-    App,
 } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
@@ -22,7 +21,7 @@ export default class FlexiCal extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-		this.eventBus = new FlexiCalEventBus(this.app);
+		this.eventBus = new FlexiCalEventBus(this);
 		logger.setDebug(this.settings.debugMode);
 
 		this.registerView(
@@ -102,17 +101,20 @@ interface FlexiCalEventMap {
 }
 
 export class FlexiCalEventBus extends Events {
-	constructor(app: App) {
+	private plugin: FlexiCal;
+
+	constructor(plugin: FlexiCal) {
 		super();
-		app.vault.on("create", (file) => {
+		this.plugin = plugin;
+		this.plugin.registerEvent(this.plugin.app.vault.on("create", (file) => {
 			this.trigger(FILE_CREATED_EVENT, file);
-		});
-		app.vault.on("delete", (file) => {
+		}));
+		this.plugin.registerEvent(this.plugin.app.vault.on("delete", (file) => {
 			this.trigger(FILE_DELETED_EVENT, file);
-		});
-		app.metadataCache.on("changed", (file) => {
+		}));
+		this.plugin.registerEvent(this.plugin.app.metadataCache.on("changed", (file) => {
 			this.trigger(FILE_MODIFIED_EVENT, file);
-		});
+		}));
 	}
 
 	trigger<K extends keyof FlexiCalEventMap>(eventName: K, data: FlexiCalEventMap[K]): void {
@@ -123,8 +125,10 @@ export class FlexiCalEventBus extends Events {
 		eventName: K,
 		callback: (data: FlexiCalEventMap[K]) => void,
 	): EventRef {
-		return super.on(eventName, (...data: unknown[]) => {
+		const ev = super.on(eventName, (...data: unknown[]) => {
 			callback(data[0] as FlexiCalEventMap[K]);
 		});
+		this.plugin.registerEvent(ev);
+		return ev;
 	}
 }
