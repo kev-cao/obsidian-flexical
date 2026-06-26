@@ -32,3 +32,12 @@ export const PROPERTY_TYPE_OPTIONS: Record<PropertyFilter["kind"], string> = {
 	"property-list": "List",
 	"property-tag": "Tag",
 };
+
+export const PROPERTY_TYPE_TO_INPUT_TYPE: Record<PropertyFilter["kind"], string> = {
+	"property-text": "text",
+	"property-number": "number",
+	"property-date": "date",
+	"property-list": "text",
+	"property-tag": "text",
+	"property-checkbox": "", // We don't display an input for checkbox types.
+}

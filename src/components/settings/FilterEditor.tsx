@@ -1,6 +1,6 @@
 import { Filter, genFilterID, isOperandFilter, isPropertyFilter, OperandFilter, PathFilter, PROPERTY_FILTER_OPERATORS, PropertyFilter } from "@/lib/filter";
 import { ReactElement, useState } from "react";
-import { FILTER_SELECT_OPTIONS, KIND_TO_SELECT_OPTION, PROPERTY_TYPE_OPTIONS } from "./filterText";
+import { FILTER_SELECT_OPTIONS, KIND_TO_SELECT_OPTION, PROPERTY_TYPE_OPTIONS, PROPERTY_TYPE_TO_INPUT_TYPE } from "./filterText";
 import ObsidianIconButton from "../IconButton";
 
 const MAX_NESTING_LEVEL = 4;
@@ -269,19 +269,27 @@ function PropertyFilterFields<T extends PropertyFilter>({ filter, disabled, onCh
 					))
 				}
 			</select>
-			<input
-				type="text"
-				placeholder="value"
-				value={filter.value as string}
-				disabled={disabled}
-				onChange={(e) => {
-					const updatedFilter = {
-						...filter,
-						value: e.target.value,
-					};
-					void onChange?.(updatedFilter);
-				}}
-			/>
+			{
+				filter.kind !== "property-checkbox" ? (
+					<input
+					type={PROPERTY_TYPE_TO_INPUT_TYPE[filter.kind]}
+					placeholder="value"
+					value={filter.value}
+					disabled={disabled}
+					onChange={(e) => {
+						let updatedFilter = {
+							...filter,
+							value: e.target.value as string | number,
+						};
+						if (PROPERTY_TYPE_TO_INPUT_TYPE[filter.kind] === "number") {
+							const numVal = e.target.valueAsNumber;
+							updatedFilter.value = isNaN(numVal) ? 0 : numVal;
+						}
+						void onChange?.(updatedFilter);
+					}}
+					/>
+				) : null
+			}
 		</div>
 	);
 }

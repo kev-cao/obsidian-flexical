@@ -73,7 +73,7 @@ export const PROPERTY_FILTER_OPERATORS = {
 	"property-text": ["contains", "eq", "matchesRegex"],
 	"property-number": ["eq", "gt", "lt", "geq", "leq"],
 	"property-date": ["eq", "gt", "lt", "geq", "leq"],
-	"property-checkbox": ["is", "isNot"],
+	"property-checkbox": ["isChecked", "isUnchecked"],
 	"property-list": ["contains", "containsRegex"],
 	"property-tag": ["contains", "containsRegex"],
 } as const satisfies Record<PropertyFilterKind, readonly string[]>;
@@ -167,7 +167,6 @@ function fileMatchesPropertyFilter(fileEntry: FileEntry, filter: PropertyFilter)
 		case "property-checkbox":
 			return checkboxPropertyPredicate(
 				cache.frontmatter[filter.key],
-				filter.value,
 				filter.operator,
 			);
 		case "property-list":
@@ -239,16 +238,16 @@ function datePropertyPredicate(
 }
 
 function checkboxPropertyPredicate(
-	lhs: unknown, rhs: boolean, operator: CheckboxPropertyFilter["operator"],
+	lhs: unknown, operator: CheckboxPropertyFilter["operator"],
 ): boolean {
 	if (typeof lhs !== "boolean") {
 		return false;
 	}
 	switch (operator) {
-		case "is":
-			return lhs === rhs;
-		case "isNot":
-			return lhs !== rhs;
+		case "isChecked":
+			return !!lhs;
+		case "isUnchecked":
+			return !lhs;
 	}
 }
 
