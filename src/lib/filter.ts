@@ -79,6 +79,9 @@ export const PROPERTY_FILTER_OPERATORS = {
 	"property-tag": ["contains", "containsRegex"],
 } as const satisfies Record<PropertyFilterKind, readonly string[]>;
 
+// If new regex operators are added, they should be added to this list as well.
+export const REGEX_OPERATORS = ["matchesRegex", "containsRegex"];
+
 export interface TextPropertyFilter extends PropertyFilterBase {
 	kind: "property-text";
 	operator: typeof PROPERTY_FILTER_OPERATORS["property-text"][number];
@@ -223,7 +226,7 @@ function textPropertyPredicate(
 		case "eq":
 			return lhs === rhs;
 		case "matchesRegex": {
-			const regex = safeRegex(rhs);
+			const regex = safeRegex(rhs, true);
 			return regex !== null && regex.test(lhs);
 		}
 	}
@@ -295,7 +298,7 @@ function listPropertyPredicate(
 		case "contains":
 			return lhs.includes(rhs);
 		case "containsRegex": {
-			const regex = safeRegex(rhs);
+			const regex = safeRegex(rhs, true);
 			return regex !== null && lhs.some((item) => typeof item === "string" && regex.test(item));
 		}
 	}
@@ -316,11 +319,12 @@ export function validateFilter(filter: Filter): ([boolean, string]) {
 			return [true, ""];
 		}
 		case "property-text":
+		case "property-list":
 		case "property-tag": {
-			if (!filter.operator.contains("Regex")) {
+			if (REGEX_OPERATORS.includes(filter.operator)) {
 				return [true, ""];
 			}
-			const regex = safeRegex(filter.value, false);
+			const regex = safeRegex(filter.value);
 			if (regex === null) {
 				return [false, `invalid regex pattern: ${filter.value}`];
 			}

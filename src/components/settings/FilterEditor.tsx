@@ -1,10 +1,12 @@
 import { Filter, genFilterID, isOperandFilter, isPropertyFilter, OperandFilter, PathFilter, PROPERTY_FILTER_OPERATORS, PropertyFilter, validateFilter } from "@/lib/filter";
-import { ReactElement, useState } from "react";
+import { ReactElement, useEffect, useRef, useState } from "react";
 import { FILTER_SELECT_OPTIONS, KIND_TO_SELECT_OPTION, PROPERTY_TYPE_OPTIONS, PROPERTY_TYPE_TO_INPUT_TYPE } from "./filterText";
 import ObsidianIconButton from "../IconButton";
 import { Notice } from "obsidian";
 
 const MAX_NESTING_LEVEL = 4;
+const VALIDATION_ERR_DISPLAY_TIME_MS = 5000;
+const DEBOUNCE_DELAY_MS = 1500;
 
 interface FilterEditorProps {
 	level: number; // Used to limit nesting to MAX_NESTING_LEVEL (1-indexed)
@@ -25,22 +27,50 @@ export default function FilterEditor({
 	disabled,
 	onChange,
 }: FilterEditorProps) {
-	const [filter, _setFilter] = useState(initialFilter);
-	const updateFilter = (next: Filter | undefined) => {
-		if (next) {
-			const [valid, errMsg] = validateFilter(next);
-			if (!valid) {
-				new Notice("Error: " + errMsg, 5000);
-			}
+	const [filter, setFilter] = useState(initialFilter);
+	// Holds the latest pending debounced save so it can be flushed on unmount.
+	const pendingSave = useRef<(() => void) | null>(null);
+
+	useEffect(() => {
+		// On the initial mount the state still equals the prop we were handed,
+		// so nothing was actually edited yet. Bail to avoid saving/rescanning
+		// (and toasting on a pre-existing invalid filter) just from opening.
+		if (filter === initialFilter) return;
+
+		if (level !== 1) {
+			void onChange?.(filter);
+			return;
 		}
-		_setFilter(next);
-		void onChange?.(next);
-	};
+
+		// We rescan for matches whenever the settings are updated, which can be
+		// relatively expensive. As such, at the top level we debounce the
+		// onChange calls and validation to avoid excessive rescans.
+		const flush = () => {
+			pendingSave.current = null;
+			if (filter) {
+				const [valid, errMsg] = validateFilter(filter);
+				if (!valid) {
+					new Notice("Error: " + errMsg, VALIDATION_ERR_DISPLAY_TIME_MS);
+				}
+			}
+			void onChange?.(filter);
+		};
+		pendingSave.current = flush;
+		const timer = window.setTimeout(flush, DEBOUNCE_DELAY_MS);
+		return () => window.clearTimeout(timer);
+	}, [filter, initialFilter, level, onChange]);
+
+	// Flush any pending debounced save when the editor unmounts (e.g. the modal
+	// is closed) so a fast edit-then-close does not drop the last change.
+	useEffect(() => {
+		return () => pendingSave.current?.();
+	}, []);
+
 	if (!filter) {
 		return (
 			<button
 				disabled={disabled}
-				onClick={() => updateFilter(defaultFilter())}
+				onClick={() => setFilter(defaultFilter())}
 			>
 				Add Filter
 			</button>
@@ -89,7 +119,7 @@ export default function FilterEditor({
 				};
 				break;
 		}
-		updateFilter(defaultFilter);
+		setFilter(defaultFilter);
 	};
 
 	let filterFields: (() => ReactElement) | null = null;
@@ -99,7 +129,7 @@ export default function FilterEditor({
 								  level={level}
 								  disabled={disabled}
 								  onChange={async (filter) => {
-									updateFilter(filter);
+									setFilter(filter);
 								  }}
 							  />);
 	} else if (isPropertyFilter(filter)) {
@@ -107,7 +137,7 @@ export default function FilterEditor({
 									filter={filter}
 									disabled={disabled}
 									onChange={async (filter) => {
-										updateFilter(filter);
+										setFilter(filter);
 									}}
 						/>);
 	} else {
@@ -115,7 +145,7 @@ export default function FilterEditor({
 									filter={filter}
 									disabled={disabled}
 									onChange={async (filter) => {
-										updateFilter(filter);
+										setFilter(filter);
 								}}
 							/>);
 	}
@@ -144,7 +174,7 @@ export default function FilterEditor({
 					iconId="circle-minus"
 					onClick={
 						() => {
-							updateFilter(undefined);
+							setFilter(undefined);
 						}
 					}
 				/>
