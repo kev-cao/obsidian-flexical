@@ -1,6 +1,7 @@
 import picomatch from "picomatch/posix";
 import { nanoid } from "nanoid";
 import { CachedMetadata, TFile } from "obsidian";
+import logger from "./utils/logging";
 
 export interface FileEntry {
 	file: TFile;
@@ -140,6 +141,37 @@ export function genFilterID(): string {
 	return nanoid(5);
 }
 
+// safeRegex compiles a user-supplied pattern, returning null (rather than
+// throwing) when the pattern is invalid, so a bad filter degrades to "matches
+// nothing" instead of blanking the calendar. Results are memoized because
+// collectMatches evaluates filters against every file in the vault; an uncached
+// compile would rebuild the same RegExp once per file. Filter patterns come from
+// a bounded set of saved filters, so the cache cannot grow unboundedly.
+//
+// NOTE: the cached RegExp instances are only safe to reuse with .test() because
+// no flags are used here. A global/sticky ("g"/"y") regex carries lastIndex
+// state across calls; if flag support is ever added, reset lastIndex or skip the
+// cache for flagged patterns.
+const regexCache = new Map<string, RegExp | null>();
+
+function safeRegex(pattern: string, cache: boolean = false): RegExp | null {
+	const cached = regexCache.get(pattern);
+	if (cached !== undefined) {
+		return cached;
+	}
+	let regex: RegExp | null;
+	try {
+		regex = new RegExp(pattern);
+	} catch {
+		logger.warn(`Invalid regex pattern in filter: ${pattern}`);
+		regex = null;
+	}
+	if (cache) {
+		regexCache.set(pattern, regex);
+	}
+	return regex;
+}
+
 function fileMatchesPropertyFilter(fileEntry: FileEntry, filter: PropertyFilter): boolean {
 	const { cache } = fileEntry;
 	if (!cache.frontmatter) {
@@ -190,8 +222,10 @@ function textPropertyPredicate(
 			return lhs.includes(rhs);
 		case "eq":
 			return lhs === rhs;
-		case "matchesRegex":
-			return new RegExp(rhs).test(lhs);
+		case "matchesRegex": {
+			const regex = safeRegex(rhs);
+			return regex !== null && regex.test(lhs);
+		}
 	}
 }
 
@@ -261,9 +295,38 @@ function listPropertyPredicate(
 		case "contains":
 			return lhs.includes(rhs);
 		case "containsRegex": {
-			const regex = new RegExp(rhs);
-			return lhs.some((item) => typeof item === "string" && regex.test(item));
+			const regex = safeRegex(rhs);
+			return regex !== null && lhs.some((item) => typeof item === "string" && regex.test(item));
 		}
 	}
 }
 
+// validateFilter checks that a filter is valid, returning a tuple of [isValid, errorMessage].
+export function validateFilter(filter: Filter): ([boolean, string]) {
+	switch (filter.kind) {
+		case "and":
+		case "or":
+		case "not": {
+			for (const child of filter.filters) {
+				const [valid, message] = validateFilter(child);
+				if (!valid) {
+					return [false, message];
+				}
+			}
+			return [true, ""];
+		}
+		case "property-text":
+		case "property-tag": {
+			if (!filter.operator.contains("Regex")) {
+				return [true, ""];
+			}
+			const regex = safeRegex(filter.value, false);
+			if (regex === null) {
+				return [false, `invalid regex pattern: ${filter.value}`];
+			}
+			return [true, ""];
+		}
+		default:
+			return [true, ""];
+	}
+}

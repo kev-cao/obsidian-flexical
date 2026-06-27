@@ -1,7 +1,8 @@
-import { Filter, genFilterID, isOperandFilter, isPropertyFilter, OperandFilter, PathFilter, PROPERTY_FILTER_OPERATORS, PropertyFilter } from "@/lib/filter";
+import { Filter, genFilterID, isOperandFilter, isPropertyFilter, OperandFilter, PathFilter, PROPERTY_FILTER_OPERATORS, PropertyFilter, validateFilter } from "@/lib/filter";
 import { ReactElement, useState } from "react";
 import { FILTER_SELECT_OPTIONS, KIND_TO_SELECT_OPTION, PROPERTY_TYPE_OPTIONS, PROPERTY_TYPE_TO_INPUT_TYPE } from "./filterText";
 import ObsidianIconButton from "../IconButton";
+import { Notice } from "obsidian";
 
 const MAX_NESTING_LEVEL = 4;
 
@@ -26,6 +27,12 @@ export default function FilterEditor({
 }: FilterEditorProps) {
 	const [filter, _setFilter] = useState(initialFilter);
 	const updateFilter = (next: Filter | undefined) => {
+		if (next) {
+			const [valid, errMsg] = validateFilter(next);
+			if (!valid) {
+				new Notice("Error: " + errMsg, 5000);
+			}
+		}
 		_setFilter(next);
 		void onChange?.(next);
 	};
